@@ -1,0 +1,3 @@
+/home/pedro/MeuProjetoALPR/build/CMakeFiles/meu_alpr.dir
+/home/pedro/MeuProjetoALPR/build/CMakeFiles/edit_cache.dir
+/home/pedro/MeuProjetoALPR/build/CMakeFiles/rebuild_cache.dir

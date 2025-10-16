@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/meu_alpr.dir/src/main.cpp.o -o meu_alpr  -lopenalpr -lopenalprgo 
