@@ -41,6 +41,7 @@ Para compilar o OpenALPR e o nosso projeto, precisamos de várias bibliotecas e 
 **🖥️ Linguagem: Bash**
 ```Bash
 sudo apt install -y build-essential cmake git pkg-config \libopencv-dev libtesseract-dev \liblog4cplus-dev libcurl4-openssl-dev
+sudo apt install libcurl4-openssl-dev -y
 ```
 ##### 🎯 O que estamos instalando?
 A. 🛠️ Ferramentas de Compilação:
@@ -57,6 +58,8 @@ B. 📚 Dependências do OpenALPR:
 - *liblog4cplus-dev*: Usada pelo OpenALPR para registrar logs.
 - *libcurl4-openssl-dev*: Usada para funcionalidades de rede.
 
+C. 💬 Dependências do Bot Telegram:
+- *libcurl4-openssl-dev -y*: Biblioteca para chamadas à API notificação do TELEGRAM.
 ### 🛠️ Passo 2: Compilando a Biblioteca OpenALPR
 Como o OpenALPR não está mais nos repositórios recentes do Ubuntu e requer correções para funcionar com bibliotecas modernas, vamos compilá-lo a partir do código-fonte que está na pasta **Bibliotecas/**.
 

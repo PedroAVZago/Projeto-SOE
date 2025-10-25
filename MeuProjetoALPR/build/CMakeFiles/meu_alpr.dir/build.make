@@ -92,6 +92,7 @@ meu_alpr_EXTERNAL_OBJECTS =
 
 meu_alpr: CMakeFiles/meu_alpr.dir/src/main.cpp.o
 meu_alpr: CMakeFiles/meu_alpr.dir/build.make
+meu_alpr: /usr/lib/x86_64-linux-gnu/libcurl.so
 meu_alpr: CMakeFiles/meu_alpr.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/pedro/PROJETO_SOE/MeuProjetoALPR/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX executable meu_alpr"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/meu_alpr.dir/link.txt --verbose=$(VERBOSE)
