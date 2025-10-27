@@ -78,7 +78,7 @@ LocalInfo carregarInfoLocalizacao(const string& nomeArquivo) {
 json api_conexao(const string& placa) {
     string url_base = "https://wdapi2.com.br/consulta";
     // !!! SUBSTITUA PELO SEU TOKEN REAL DA API !!!
-    string token = "SEU_TOKEN_API_WDAPI";
+    string token = "108c6f4dd016b026db32a1863192bc85";
     string url = url_base + "/" + placa + "/" + token;
     CURL* curl; CURLcode res; string readBuffer;
     curl = curl_easy_init();
@@ -103,7 +103,7 @@ json api_conexao(const string& placa) {
 // --- FUNÇÃO PARA ENVIAR ALERTA TELEGRAM (COM DADOS DA API) ---
 void enviarAlertaTelegram(const string& placa, const string& caminhoImagem, const LocalInfo& localInfo, const json& apiData) {
     // !!! SUBSTITUA PELO SEU TOKEN DO BOT !!!
-    const string BOT_TOKEN = "SEU_TOKEN_TELEGRAM";
+    const string BOT_TOKEN = "8218085317:AAFcx03BlHcmsnWM5SZrPT2prtORemBwRrE";
     const string CHAT_ID = "5688718831";
 
     auto agora = chrono::system_clock::now(); auto em_tempo_t = chrono::system_clock::to_time_t(agora);
