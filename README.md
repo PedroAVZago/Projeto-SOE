@@ -1,6 +1,8 @@
 # 🚗 Projeto de Reconhecimento de Placas com OpenALPR
 
-Este repositório contém um projeto completo para reconhecimento de placas de veículos utilizando uma versão customizada e corrigida do OpenALPR. O guia abaixo detalha todo o processo de configuração do ambiente em WSL (Subsistema do Windows para Linux), desde a instalação das dependências até a compilação e execução da aplicação final.
+Este repositório contém um projeto completo para reconhecimento de placas de veículos utilizando uma versão customizada e corrigida do OpenALPR. A aplicação identifica placas em imagens, consulta uma API externa (`wdapi2.com.br`) para obter dados do veículo e, caso a placa esteja em uma lista de restrição (ex: roubados), envia um alerta detalhado para o Telegram com a foto e os dados consultados.
+
+*(Este README foca na versão `MeuProjetoALPR` que processa imagens estáticas. Para a versão em tempo real com webcam para Raspberry Pi, veja o diretório `MeuProjetoALPR_RASP/`)*.
 
 ## 📋 Estrutura do Repositório
 
@@ -10,16 +12,23 @@ O projeto está organizado da seguinte maneira:
 ├── README.md                <-- Este guia
 ├── Bibliotecas/
 │   └── openalpr/            <-- O código-fonte corrigido do OpenALPR
-└── MeuProjetoALPR/
+├── MeuProjetoALPR/
     ├── README.md            <-- Guia específico da sua aplicação
-    ├── build/               <-- Pasta para compilação (inicialmente vazia)
+    ├── build/ <-- Pasta para compilação (necessita cacert.pem aqui!)
     ├── media/
     │   └── carro_teste.jpg  <-- Imagem para testes
     ├── src/
     │   └── main.cpp         <-- O código-fonte da sua aplicação
+    │   └── json.hpp         <-- Biblioteca nlohmann/json (NECESSÁRIO AQUI)
     └── CMakeLists.txt       <-- O "roteiro" de compilação da sua aplicação
-	
+├── Local_da_Camera.txt 	 <-- Configuração de localização (na raiz)	
+├── PLACAS_ROUBADAS.txt 	 <-- Lista de placas (na raiz)
+├── MeuProjetoALPR_RASP/ 	 <-- Código para a RASP
+    ├── ...          
 ```
+
+
+
 ## 🚀 Utilização do Repositório
 
 ### ⚙️ Passo 1: Configuração do Ambiente WSL
@@ -40,9 +49,15 @@ Para compilar o OpenALPR e o nosso projeto, precisamos de várias bibliotecas e 
 
 **🖥️ Linguagem: Bash**
 ```Bash
-sudo apt install -y build-essential cmake git pkg-config \libopencv-dev libtesseract-dev \liblog4cplus-dev libcurl4-openssl-dev
-sudo apt install libcurl4-openssl-dev -y
+sudo apt install -y build-essential cmake git pkg-config \
+                    libopencv-dev libtesseract-dev \
+                    liblog4cplus-dev libcurl4-openssl-dev
 ```
+Este projeto usa a biblioteca nlohmann/json para processar a resposta da API de consulta.
+Esta etapa já foi feita, caso não haja arquivo no src, realize-a:
+
+1. Baixe o arquivo json.hpp mais **recente**: Vá para https://github.com/nlohmann/json/releases, encontre a última release e baixe o arquivo json.hpp (geralmente listado nos "Assets").
+2. Copie o arquivo json.hpp para dentro da pasta MeuProjetoALPR/src/.
 ##### 🎯 O que estamos instalando?
 A. 🛠️ Ferramentas de Compilação:
 
@@ -58,12 +73,23 @@ B. 📚 Dependências do OpenALPR:
 - *liblog4cplus-dev*: Usada pelo OpenALPR para registrar logs.
 - *libcurl4-openssl-dev*: Usada para funcionalidades de rede.
 
-C. 💬 Dependências do Bot Telegram:
+C. 💬 Dependências do Bot Telegram e consulta a API:
 - *libcurl4-openssl-dev -y*: Biblioteca para chamadas à API notificação do TELEGRAM.
-### 🛠️ Passo 2: Compilando a Biblioteca OpenALPR
+- *nlohmann/json*: Processamento de Resposta API
+
+### ⚙️ Passo 2: Configuração Pré-Compilação (IMPORTANTE!)
+Antes de compilar e executar MeuProjetoALPR, alguns arquivos e tokens precisam ser configurados:
+1. **Certificado SSL (cacert.pem)**:
+	- Para que a chamada à API de consulta (wdapi2.com.br) seja segura (HTTPS), precisamos de um arquivo de certificados CA.
+	- Baixe o cacert.pem mais recente em: https://curl.se/docs/caextract.html
+	- **CRÍTICO:** Coloque este arquivo cacert.pem dentro da pasta MeuProjetoALPR/build/. Você precisará fazer isso antes de executar o programa (e novamente se limpar a pasta build).
+2. Arquivos de Dados (na Raiz PROJETO_SOE):
+	-ertifique-se de que os arquivos PLACAS_ROUBADAS.txt (com uma placa por linha) e Local_da_Camera.txt (com DESCRICAO:, LATITUDE:, LONGITUDE:) existem na pasta raiz do projeto (PROJETO_SOE/) e estão preenchidos corretamente.
 Como o OpenALPR não está mais nos repositórios recentes do Ubuntu e requer correções para funcionar com bibliotecas modernas, vamos compilá-lo a partir do código-fonte que está na pasta **Bibliotecas/**.
 
-#### 2.1 - 📁 Navegue até a Pasta do Código-Fonte
+### 🛠️ Passo 3: Compilando a Biblioteca OpenALPR
+
+#### 3.1 - 📁 Navegue até a Pasta do Código-Fonte
 Assumindo que você está na raiz do repositório clonado:
 
 **🖥️ Linguagem: Bash**
@@ -71,7 +97,7 @@ Assumindo que você está na raiz do repositório clonado:
 cd Bibliotecas/openalpr/src/
 ```
 
-#### 2.2 - 📂 Crie a Pasta de Build
+#### 3.2 - 📂 Crie a Pasta de Build
 É uma boa prática compilar projetos em uma pasta separada para não sujar o diretório do código-fonte.
 
 **🖥️ Linguagem: Bash**
@@ -82,7 +108,7 @@ cd build
 
 
 
-#### 2.3 - ⚡ Configure com CMake e Compile com Make
+#### 3.3 - ⚡ Configure com CMake e Compile com Make
 Agora, vamos configurar, compilar e instalar a biblioteca. A compilação (make) pode demorar vários minutos.
 
 **🖥️ Linguagem: Bash**
@@ -96,7 +122,7 @@ sudo make install
 # 4. Atualiza o cache de bibliotecas do sistema, para ser acessado como função base:
 sudo ldconfig
 ```
-#### 2.4 - ✅ Verificação
+#### 3.4 - ✅ Verificação
 Se tudo correu bem, o comando alpr agora deve estar disponível no seu sistema. Verifique a instalação com:
 
 **🖥️ Linguagem: Bash**
@@ -105,10 +131,10 @@ alpr --version
 ```
 Você deverá ver a versão do OpenALPR instalada.
 
-### 🚀 Passo 3: Compilando e Executando a Aplicação (MeuProjetoALPR)
+### 🚀 Passo 4: Compilando e Executando a Aplicação (MeuProjetoALPR)
 Agora que a biblioteca OpenALPR está instalada e pronta para ser usada, vamos compilar a nossa aplicação customizada que a utiliza.
 
-#### 3.1 - 📁 Navegue até a Pasta do Projeto
+#### 4.1 - 📁 Navegue até a Pasta do Projeto
 Volte para a raiz do repositório e entre na pasta MeuProjetoALPR.
 
 **🖥️ Linguagem: Bash**
@@ -116,7 +142,7 @@ Volte para a raiz do repositório e entre na pasta MeuProjetoALPR.
 # Se você ainda está em 'openalpr/src/build', volte 4 níveis:
 cd ../../../../MeuProjetoALPR/
 ```
-#### 3.2 - 📂 Crie a Pasta de Build
+#### 4.2 - 📂 Crie a Pasta de Build
 Assim como antes, vamos usar uma pasta build dedicada.
 
 **🖥️ Linguagem: Bash**
@@ -124,7 +150,7 @@ Assim como antes, vamos usar uma pasta build dedicada.
 cd build
 ```
 
-#### 3.3 - ⚡ Compile o Projeto
+#### 4.3 - ⚡ Compile o Projeto
 O CMakeLists.txt deste projeto já está configurado para encontrar e usar a biblioteca OpenALPR que acabamos de instalar.
 
 **🖥️ Linguagem: Bash**
@@ -137,7 +163,7 @@ make
 Se a compilação terminar sem erros, um executável chamado meu_alpr terá sido criado dentro da pasta build.
 
 
-#### 3.4 - 🎯 Execute!
+#### 4.4 - 🎯 Execute!
 Para rodar a aplicação, execute o programa a partir da pasta build, passando o caminho da imagem de teste como argumento.
 
 **🖥️ Linguagem: Bash**
@@ -147,9 +173,15 @@ Para rodar a aplicação, execute o programa a partir da pasta build, passando o
 
 📊 Saída Esperada:
 ```Bash
+X placas carregadas do arquivo.
+Localizacao da camera carregada: Camera 01 - LOC
+
 Analisando Placa 1...
   - Tentativa 1: GZN1B34 (Confianca: 92.541%)
 >>> ALERTA: Placa 'GZN1B34' encontrada na lista de roubados!
+Consultando API para detalhes do veiculo...
+Consulta a API realizada com sucesso para placa: GZN1B34
 
-AÇÃO: Enviando notificacao as autoridades e ao proprietario!
+ACAO: Enviando notificacao as autoridades e ao proprietario!
+Alerta enviado para o Telegram com sucesso!
 ```

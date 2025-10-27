@@ -10,86 +10,83 @@
 #include <ctime>
 #include <curl/curl.h>
 #include <algorithm>
+#include "json.hpp" // Biblioteca nlohmann/json (coloque o .hpp aqui)
 
-// --- NOVA ESTRUTURA PARA ARMAZENAR DADOS DE LOCALIZAÇÃO ---
+using json = nlohmann::json;
+using namespace std; // Adicionado para simplificar (opcional)
+
+// --- ESTRUTURA PARA ARMAZENAR DADOS DE LOCALIZAÇÃO ---
 struct LocalInfo {
-    std::string latitude = "NAO_DEFINIDO";
-    std::string longitude = "NAO_DEFINIDO";
-    std::string local_descricao = "Local Desconhecido";
+    string latitude = "NAO_DEFINIDO";
+    string longitude = "NAO_DEFINIDO";
+    string local_descricao = "Local Desconhecido";
 };
 
-/**
- * @brief Função de callback para "engolir" a resposta do curl.
- * Isso impede que o JSON de resposta do Telegram seja impresso no console.
- */
-static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
-    // Retorna o número de bytes "lidos" para que o curl pense que foi sucesso
+// --- FUNÇÕES DE CALLBACK PARA LIBCURL ---
+
+// Callback para "engolir" a resposta do Telegram (evita JSON no console)
+static size_t WriteTelegramCallback(void* ptr, size_t size, size_t nmemb, void* userdata) {
     return size * nmemb;
 }
 
-/**
- * @brief Remove espaços em branco do início de uma string.
- */
-static inline void ltrim(std::string &s) {
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
-        return !std::isspace(ch);
+// Callback para capturar a resposta da API de consulta de placa
+static size_t WriteApiCallback(void* contents, size_t size, size_t nmemb, string* output) {
+    size_t totalSize = size * nmemb;
+    output->append((char*)contents, totalSize);
+    return totalSize;
+}
+
+// --- FUNÇÕES AUXILIARES ---
+
+static inline void ltrim(string &s) {
+    s.erase(s.begin(), find_if(s.begin(), s.end(), [](unsigned char ch) {
+        return !isspace(ch);
     }));
 }
 
-/**
- * @brief Valida se uma string de placa corresponde aos formatos brasileiros.
- */
-bool validaFormatoPlaca(const std::string& placa) {
+bool validaFormatoPlaca(const string& placa) {
     if (placa.length() != 7) return false;
-    bool formatoAntigoValido = 
+    bool formatoAntigoValido =
         isalpha(placa[0]) && isalpha(placa[1]) && isalpha(placa[2]) &&
         isdigit(placa[3]) && isdigit(placa[4]) && isdigit(placa[5]) && isdigit(placa[6]);
     if (formatoAntigoValido) return true;
-    bool formatoMercosulValido = 
+    bool formatoMercosulValido =
         isalpha(placa[0]) && isalpha(placa[1]) && isalpha(placa[2]) &&
         isdigit(placa[3]) && isalpha(placa[4]) && isdigit(placa[5]) && isdigit(placa[6]);
     if (formatoMercosulValido) return true;
     return false;
 }
 
-/**
- * @brief Carrega uma lista de placas a partir de um arquivo de texto.
- */
-std::vector<std::string> carregarPlacasDoArquivo(const std::string& nomeArquivo) {
-    std::vector<std::string> placas;
-    std::ifstream arquivo(nomeArquivo);
+vector<string> carregarPlacasDoArquivo(const string& nomeArquivo) {
+    vector<string> placas;
+    ifstream arquivo(nomeArquivo);
     if (!arquivo.is_open()) {
-        std::cerr << "ERRO FATAL: Nao foi possivel abrir o arquivo de placas: " << nomeArquivo << std::endl;
+        cerr << "ERRO FATAL: Nao foi possivel abrir o arquivo de placas: " << nomeArquivo << endl;
         return placas;
     }
-    std::string linha;
-    while (std::getline(arquivo, linha)) {
+    string linha;
+    while (getline(arquivo, linha)) {
         if (!linha.empty()) {
             placas.push_back(linha);
         }
     }
     arquivo.close();
-    std::cout << placas.size() << " placas carregadas do arquivo." << std::endl;
+    cout << placas.size() << " placas carregadas do arquivo." << endl;
     return placas;
 }
 
-/**
- * @brief Carrega as informações de localização da câmera de um arquivo.
- */
-LocalInfo carregarInfoLocalizacao(const std::string& nomeArquivo) {
+LocalInfo carregarInfoLocalizacao(const string& nomeArquivo) {
     LocalInfo info;
-    std::ifstream arquivo(nomeArquivo);
-
+    ifstream arquivo(nomeArquivo);
     if (!arquivo.is_open()) {
-        std::cerr << "ERRO FATAL: Nao foi possivel abrir o arquivo de localizacao: " << nomeArquivo << std::endl;
+        cerr << "ERRO FATAL: Nao foi possivel abrir o arquivo de localizacao: " << nomeArquivo << endl;
         return info;
     }
-
-    std::string linha;
-    while (std::getline(arquivo, linha)) {
-        std::stringstream ss(linha);
-        std::string chave, valor;
-        if (std::getline(ss, chave, ':') && std::getline(ss, valor)) {
+    string linha;
+    while (getline(arquivo, linha)) {
+        stringstream ss(linha);
+        string chave, valor;
+        if (getline(ss, chave, ':') && getline(ss, valor)) {
             ltrim(valor);
             if (chave == "LATITUDE") info.latitude = valor;
             else if (chave == "LONGITUDE") info.longitude = valor;
@@ -97,85 +94,149 @@ LocalInfo carregarInfoLocalizacao(const std::string& nomeArquivo) {
         }
     }
     arquivo.close();
-    std::cout << "Localizacao da camera carregada: " << info.local_descricao << std::endl;
+    cout << "Localizacao da camera carregada: " << info.local_descricao << endl;
     return info;
 }
 
+// --- FUNÇÃO PARA CONECTAR À API DE CONSULTA ---
+json api_conexao(const string& placa) {
+    string url_base = "https://wdapi2.com.br/consulta";
+    string token = "108c6f4dd016b026db32a1863192bc85";
+    string url = url_base + "/" + placa + "/" + token;
 
-/**
- * @brief Envia um alerta para o Telegram com foto e dados.
- */
-void enviarAlertaTelegram(const std::string& placa, const std::string& caminhoImagem, const LocalInfo& localInfo) {
+    CURL* curl;
+    CURLcode res;
+    string readBuffer; // Buffer para guardar a resposta JSON
+
+    curl = curl_easy_init();
+    if (curl) {
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L); // Timeout de 10 segundos
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteApiCallback); // Usa o callback da API
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+        // Garante que o cacert.pem está na pasta build/
+        curl_easy_setopt(curl, CURLOPT_CAINFO, "cacert.pem");
+
+        res = curl_easy_perform(curl);
+        curl_easy_cleanup(curl);
+
+        if (res == CURLE_OK) {
+            cout << "\nConsulta a API realizada com sucesso para placa: " << placa << endl;
+            try {
+                // Tenta interpretar a resposta como JSON
+                return json::parse(readBuffer);
+            } catch (json::parse_error& e) {
+                cerr << "Erro ao interpretar JSON da API: " << e.what() << endl;
+                cerr << "Resposta recebida: " << readBuffer << endl;
+            }
+        } else {
+            cerr << "Erro ao conectar à API de consulta: " << curl_easy_strerror(res) << endl;
+        }
+    }
+    // Se chegou aqui, algo deu errado
+    cerr << "Atenção! Nao foi possivel obter dados da API para a placa " << placa << "." << endl;
+    return json(); // Retorna um objeto JSON vazio para indicar falha
+}
+
+
+// --- FUNÇÃO PARA ENVIAR ALERTA TELEGRAM (MODIFICADA) ---
+void enviarAlertaTelegram(const string& placa, const string& caminhoImagem, const LocalInfo& localInfo, const json& apiData) {
     // --- PREENCHA ESTAS INFORMAÇÕES ---
-    const std::string BOT_TOKEN = "8218085317:AAFcx03BlHcmsnWM5SZrPT2prtORemBwRrE"; 
-    const std::string CHAT_ID = "5688718831"; // Seu Chat ID
-    
+    const string BOT_TOKEN = "8218085317:AAFcx03BlHcmsnWM5SZrPT2prtORemBwRrE"; // Use o token do seu bot
+    const string CHAT_ID = "5688718831";
+
     // 1. Obter Horário
-    auto agora = std::chrono::system_clock::now();
-    auto em_tempo_t = std::chrono::system_clock::to_time_t(agora);
-    std::stringstream ss_tempo;
-    ss_tempo << std::put_time(std::localtime(&em_tempo_t), "%Y-%m-%d %H:%M:%S");
-    std::string horario = ss_tempo.str();
+    auto agora = chrono::system_clock::now();
+    auto em_tempo_t = chrono::system_clock::to_time_t(agora);
+    stringstream ss_tempo;
+    ss_tempo << put_time(localtime(&em_tempo_t), "%Y-%m-%d %H:%M:%S");
+    string horario = ss_tempo.str();
 
     // 2. Obter Localização
-    std::string latitude = localInfo.latitude;
-    std::string longitude = localInfo.longitude;
-    std::string local_descricao = localInfo.local_descricao;
-    std::string google_maps_link = "https://www.google.com/maps?q=" + latitude + "," + longitude;
+    string latitude = localInfo.latitude;
+    string longitude = localInfo.longitude;
+    string local_descricao = localInfo.local_descricao;
+    string google_maps_link = "https://www.google.com/maps?q=" + latitude + "," + longitude;
 
-    // 3. Montar a Mensagem
-    std::stringstream ss_msg;
+    // --- 3. EXTRAIR DADOS DA API (com valores padrão) ---
+    string marca = apiData.value("MARCA", "N/A");
+    string modelo = apiData.value("MODELO", "N/A");
+    string cor = apiData.value("cor", "N/A");
+    string ano = apiData.value("ano", "N/A");
+    string anoModelo = apiData.value("ano_modelo", "N/A");
+    string situacao = apiData.value("situacao", "N/A");
+    string chassi = apiData.value("chassi", "N/A"); // Últimos 4 dígitos geralmente
+
+    // Tratamento das restrições (igual ao seu exemplo)
+    string r1 = apiData.contains("extra") ? apiData["extra"].value("restricao_1", "SEM RESTRICAO") : "SEM RESTRICAO";
+    string r2 = apiData.contains("extra") ? apiData["extra"].value("restricao_2", "SEM RESTRICAO") : "SEM RESTRICAO";
+    string r3 = apiData.contains("extra") ? apiData["extra"].value("restricao_3", "SEM RESTRICAO") : "SEM RESTRICAO";
+    string r4 = apiData.contains("extra") ? apiData["extra"].value("restricao_4", "SEM RESTRICAO") : "SEM RESTRICAO";
+    vector<string> restricoes = {r1, r2, r3, r4};
+    vector<string> restricoes_validas;
+    for (const auto& r : restricoes) if (r != "SEM RESTRICAO") restricoes_validas.push_back(r);
+    string resultado_restricoes;
+    if (restricoes_validas.empty()) {
+        resultado_restricoes = "Nenhuma";
+    } else {
+        for (size_t i = 0; i < restricoes_validas.size(); ++i) {
+            resultado_restricoes += restricoes_validas[i];
+            if (i < restricoes_validas.size() - 1) resultado_restricoes += ", ";
+        }
+    }
+
+    // --- 4. Montar a Mensagem Completa ---
+    stringstream ss_msg;
     ss_msg << "🚨 ALERTA DE VEICULO ROUBADO 🚨\n\n"
            << "Placa Detectada: " << placa << "\n"
            << "Horario: " << horario << "\n"
            << "Local: " << local_descricao << "\n"
-           << "Localizacao (GPS): " << google_maps_link;
-    std::string mensagem = ss_msg.str();
+           << "Localizacao (GPS): " << google_maps_link << "\n\n"
+           << "--- Dados do Veiculo (Consulta API) ---\n"
+           << "Marca/Modelo: " << marca << " / " << modelo << "\n"
+           << "Cor: " << cor << "\n"
+           << "Ano Fab/Mod: " << ano << "/" << anoModelo << "\n"
+           << "Chassi (Final): " << chassi << "\n"
+           << "Situacao: " << situacao << "\n"
+           << "Restricoes: " << resultado_restricoes;
+    string mensagem = ss_msg.str();
 
-    // --- ENVIO COM LIBCURL ---
+    // --- 5. ENVIO COM LIBCURL (Mesmo de antes, mas com WriteTelegramCallback) ---
     CURL* curl;
     CURLcode res;
     curl_global_init(CURL_GLOBAL_ALL);
     curl = curl_easy_init();
-    
+
     if (curl) {
-        std::string url = "https://api.telegram.org/bot" + BOT_TOKEN + "/sendPhoto";
+        string url = "https://api.telegram.org/bot" + BOT_TOKEN + "/sendPhoto";
+        curl_mime *form = curl_mime_init(curl);
+        curl_mimepart *field;
 
-        curl_mime *form = NULL;
-        curl_mimepart *field = NULL;
-        form = curl_mime_init(curl);
-
-        // Campo 1: chat_id
+        // chat_id
         field = curl_mime_addpart(form);
         curl_mime_name(field, "chat_id");
-        // *** CORREÇÃO AQUI: Passa (size_t)-1 para o curl medir a string
         curl_mime_data(field, CHAT_ID.c_str(), (size_t)-1);
 
-        // Campo 2: photo (o arquivo)
+        // photo
         field = curl_mime_addpart(form);
         curl_mime_name(field, "photo");
         curl_mime_filedata(field, caminhoImagem.c_str());
 
-        // Campo 3: caption (a mensagem)
+        // caption
         field = curl_mime_addpart(form);
         curl_mime_name(field, "caption");
-        // *** CORREÇÃO AQUI: Passa o tamanho real da mensagem
         curl_mime_data(field, mensagem.c_str(), mensagem.length());
 
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
         curl_easy_setopt(curl, CURLOPT_MIMEPOST, form);
-        
-        // *** NOVA LINHA: Adiciona o callback para "silenciar" a resposta JSON
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
-        
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteTelegramCallback); // Usa o callback do Telegram
+
         res = curl_easy_perform(curl);
-
         if (res != CURLE_OK) {
-            std::cerr << "\ncurl_easy_perform() falhou: " << curl_easy_strerror(res) << std::endl;
+            cerr << "\ncurl_easy_perform() falhou (Telegram): " << curl_easy_strerror(res) << endl;
         } else {
-            std::cout << "\nAlerta enviado para o Telegram com sucesso!" << std::endl;
+            cout << "\nAlerta enviado para o Telegram com sucesso!" << endl;
         }
-
         curl_mime_free(form);
         curl_easy_cleanup(curl);
     }
@@ -183,75 +244,87 @@ void enviarAlertaTelegram(const std::string& placa, const std::string& caminhoIm
 }
 
 
+// --- FUNÇÃO MAIN MODIFICADA ---
 int main(int argc, char** argv) {
     if (argc != 2) {
-        std::cout << "Uso: ./meu_alpr <caminho_para_imagem>" << std::endl;
+        cout << "Uso: ./meu_alpr <caminho_para_imagem>" << endl;
         return 1;
     }
 
-    std::string arquivoDePlacas = "../../PLACAS_ROUBADAS.txt";
-    std::vector<std::string> placas_roubadas = carregarPlacasDoArquivo(arquivoDePlacas);
+    string arquivoDePlacas = "../../PLACAS_ROUBADAS.txt";
+    vector<string> placas_roubadas = carregarPlacasDoArquivo(arquivoDePlacas);
 
-    std::string arquivoLocal = "../../Local_da_Camera.txt";
+    string arquivoLocal = "../../Local_da_Camera.txt";
     LocalInfo localInfo = carregarInfoLocalizacao(arquivoLocal);
 
     if (placas_roubadas.empty()) {
-        std::cerr << "A lista de placas esta vazia ou o arquivo nao foi encontrado. Encerrando." << std::endl;
+        cerr << "A lista de placas esta vazia ou o arquivo nao foi encontrado. Encerrando." << endl;
         return 1;
     }
 
-    std::string image_path = argv[1]; 
+    string image_path = argv[1];
     alpr::Alpr openalpr("eu", "/etc/openalpr/openalpr.conf");
     openalpr.setTopN(5);
 
     if (!openalpr.isLoaded()) {
-        std::cerr << "Erro ao carregar a biblioteca OpenALPR" << std::endl;
+        cerr << "Erro ao carregar a biblioteca OpenALPR" << endl;
         return 1;
     }
 
     alpr::AlprResults results = openalpr.recognize(image_path);
-    bool roubada = false;
-    std::string placa_roubada_encontrada = "";
+    bool roubada_detectada = false;
+    string placa_roubada_encontrada = "";
+    json dados_api_veiculo = json(); // Objeto JSON para guardar dados da API
 
     for (int i = 0; i < results.plates.size(); i++) {
         alpr::AlprPlateResult plate = results.plates[i];
-        std::cout << "\nAnalisando Placa " << i+1 << "..." << std::endl;
+        cout << "\nAnalisando Placa " << i+1 << "..." << endl;
 
         for (int k = 0; k < plate.topNPlates.size(); k++) {
             alpr::AlprPlate candidate = plate.topNPlates[k];
-            std::string placa_lida = candidate.characters;
+            string placa_lida = candidate.characters;
             float confianca = candidate.overall_confidence;
 
-            std::cout << "  - Tentativa " << k+1 << ": " << placa_lida 
-                      << " (Confianca: " << confianca << "%)" << std::endl;
+            cout << "  - Tentativa " << k+1 << ": " << placa_lida
+                      << " (Confianca: " << confianca << "%)" << endl;
 
             if (!validaFormatoPlaca(placa_lida)) {
-                std::cout << "      -> Formato invalido, ignorando." << std::endl;
+                cout << "      -> Formato invalido, ignorando." << endl;
                 continue;
             }
             if (confianca < 60.0) {
-                std::cout << "      -> Confianca muito baixa, ignorando." << std::endl;
+                cout << "      -> Confianca muito baixa, ignorando." << endl;
                 continue;
             }
 
-            for (const std::string& placa_roubada : placas_roubadas) {
+            // Verifica se a placa está na lista de roubadas
+            for (const string& placa_roubada : placas_roubadas) {
                 if (placa_lida == placa_roubada) {
-                    std::cout << ">>> ALERTA: Placa '" << placa_roubada << "' encontrada na lista de roubados!" << std::endl;
-                    roubada = true;
+                    cout << ">>> ALERTA: Placa '" << placa_roubada << "' encontrada na lista de roubados!" << endl;
+                    roubada_detectada = true;
                     placa_roubada_encontrada = placa_lida;
-                    break;
+
+                    // --- CHAMADA DA API AQUI ---
+                    cout << "Consultando API para detalhes do veiculo..." << endl;
+                    dados_api_veiculo = api_conexao(placa_lida); // Chama a API
+
+                    // Mesmo se a API falhar (dados_api_veiculo ficar vazio),
+                    // o alerta será enviado, mas com "N/A" nos campos da API.
+                    break; // Sai do loop de placas roubadas
                 }
             }
-            if (roubada) break;
+            if (roubada_detectada) break; // Sai do loop de candidatas (topNPlates)
         }
-        if (roubada) break;
+        if (roubada_detectada) break; // Sai do loop de placas físicas
     }
 
-    if (roubada) {
-        std::cout << "\nACAO: Enviando notificacao as autoridades e ao proprietario!" << std::endl;
-        enviarAlertaTelegram(placa_roubada_encontrada, image_path, localInfo);
+    // --- TOMADA DE DECISÃO FINAL ---
+    if (roubada_detectada) {
+        cout << "\nACAO: Enviando notificacao as autoridades e ao proprietario!" << endl;
+        // Chama a função de alerta, passando os dados da API
+        enviarAlertaTelegram(placa_roubada_encontrada, image_path, localInfo, dados_api_veiculo);
     } else {
-        std::cout << "\nSTATUS: Tudo OK. Nenhuma placa roubada detectada." << std::endl;
+        cout << "\nSTATUS: Tudo OK. Nenhuma placa roubada detectada." << endl;
     }
 
     return 0;

@@ -5,7 +5,7 @@ project(MeuProjetoALPR_RASP)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Encontra as três bibliotecas que precisamos
+# Encontra as bibliotecas necessárias: OpenCV, cURL e OpenALPR (via pkg-config)
 find_package(PkgConfig REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(CURL REQUIRED)
@@ -16,13 +16,14 @@ include_directories(
     ${OPENALPR_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
     ${CURL_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src # Para encontrar json.hpp
 )
 
-# Cria nosso executável
+# Cria nosso executável para tempo real
 add_executable(alpr_realtime src/main.cpp)
 
-# Linka o executável com TODAS as bibliotecas
-target_link_libraries(alpr_realtime 
+# Linka o executável com TODAS as bibliotecas necessárias
+target_link_libraries(alpr_realtime
     ${OPENALPR_LIBRARIES}
     ${OpenCV_LIBS}
     ${CURL_LIBRARIES}

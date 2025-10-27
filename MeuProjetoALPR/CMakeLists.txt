@@ -1,33 +1,31 @@
 cmake_minimum_required(VERSION 3.10)
-project(MeuProjetoALPR_RASP)
+project(MeuProjetoALPR)
 
-# Definimos o padrão C++11 (ou mais novo)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Encontra as três bibliotecas que precisamos
+# Encontra as ferramentas necessárias
 find_package(PkgConfig REQUIRED)
-find_package(OpenCV REQUIRED)
 find_package(CURL REQUIRED)
+
+# Usa pkg-config para encontrar o OpenALPR
 pkg_check_modules(OPENALPR REQUIRED openalpr)
 
-# Adiciona todos os diretórios de "include"
+# Adiciona os diretórios de include para OpenALPR, cURL e nosso próprio 'src' (para json.hpp)
 include_directories(
     ${OPENALPR_INCLUDE_DIRS}
-    ${OpenCV_INCLUDE_DIRS}
     ${CURL_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src # Garante que json.hpp seja encontrado
 )
 
 # Cria nosso executável
-add_executable(alpr_realtime src/main.cpp)
+add_executable(meu_alpr src/main.cpp)
 
-# Linka o executável com TODAS as bibliotecas
-target_link_libraries(alpr_realtime 
+# Linka nosso executável com as bibliotecas
+target_link_libraries(meu_alpr
     ${OPENALPR_LIBRARIES}
-    ${OpenCV_LIBS}
     ${CURL_LIBRARIES}
 )
 
-message(STATUS "OpenALPR Encontrado: ${OPENALPR_LIBRARIES}")
-message(STATUS "OpenCV Encontrado: ${OpenCV_LIBS}")
-message(STATUS "CURL Encontrado: ${CURL_LIBRARIES}")
+message(STATUS "OpenALPR Libraries: ${OPENALPR_LIBRARIES}")
+message(STATUS "CURL Libraries: ${CURL_LIBRARIES}")
