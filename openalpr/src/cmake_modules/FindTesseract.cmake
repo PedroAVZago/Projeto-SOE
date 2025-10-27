@@ -68,15 +68,18 @@ find_library(Tesseract_LIB
 		${CMAKE_SOURCE_DIR}/../libraries/tesseract-ocr/vs2010/LIB_Release
 )
 
-find_library(Leptonica_LIB
-  NAMES liblept170 liblept lept
-  HINTS "/usr/lib"
-        "/usr/local/lib"
-        "/opt/local/lib"
-        ${Tesseract_PKGCONF_LIBRARY_DIRS}
-		${CMAKE_SOURCE_DIR}/../libraries/tesseract-ocr/api/.libs
-		${CMAKE_SOURCE_DIR}/../libraries/tesseract-ocr/vs2010/LIB_Release
-)
+#find_library(Leptonica_LIB
+#  NAMES liblept170 liblept lept
+#  HINTS "/usr/lib"
+#        "/usr/local/lib"
+#        "/opt/local/lib"
+#        ${Tesseract_PKGCONF_LIBRARY_DIRS}
+#		${CMAKE_SOURCE_DIR}/../libraries/tesseract-ocr/api/.libs
+#		${CMAKE_SOURCE_DIR}/../libraries/tesseract-ocr/vs2010/LIB_Release
+#)
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(Leptonica REQUIRED lept)
 
 # Set the include dir variables and the libraries and let libfind_process do the rest.
 # NOTE: Singular variables for this library, plural for libraries this this lib depends on.
@@ -84,5 +87,5 @@ set(Tesseract_PROCESS_INCLUDES
   Tesseract_INCLUDE_BASEAPI_DIR
     Tesseract_INCLUDE_CCSTRUCT_DIR
     Tesseract_INCLUDE_DIRS)
-set(Tesseract_PROCESS_LIBS Tesseract_LIB Leptonica_LIB Tesseract_LIBRARIES)
+set(Tesseract_PROCESS_LIBS Tesseract_LIB Leptonica_LIBRARIES Tesseract_LIBRARIES)
 libfind_process(Tesseract)

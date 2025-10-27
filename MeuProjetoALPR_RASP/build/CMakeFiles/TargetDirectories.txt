@@ -1,0 +1,3 @@
+/home/soe/Projeto-SOE/MeuProjetoALPR_RASP/build/CMakeFiles/alpr_captura_foto.dir
+/home/soe/Projeto-SOE/MeuProjetoALPR_RASP/build/CMakeFiles/edit_cache.dir
+/home/soe/Projeto-SOE/MeuProjetoALPR_RASP/build/CMakeFiles/rebuild_cache.dir

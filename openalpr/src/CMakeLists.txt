@@ -188,7 +188,7 @@ IF (WITH_DAEMON)
 ENDIF()
 
 if(WITH_UTILITIES)
-add_subdirectory(misc_utilities)
+#add_subdirectory(misc_utilities)
 ENDIF()
 
 if (WITH_TESTS)  
