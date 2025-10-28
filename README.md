@@ -10,21 +10,28 @@ O projeto está organizado da seguinte maneira:
 ```
 .
 ├── README.md                <-- Este guia
-├── Bibliotecas/
-│   └── openalpr/            <-- O código-fonte corrigido do OpenALPR
-├── MeuProjetoALPR/
-    ├── README.md            <-- Guia específico da sua aplicação
+├── openalpr/                <-- O código-fonte corrigido do OpenALPR
+├── MeuProjetoALPR/			 <-- Código que realiza a leitura de uma imagem
     ├── build/ <-- Pasta para compilação (necessita cacert.pem aqui!)
     ├── media/
-    │   └── carro_teste.jpg  <-- Imagem para testes
+    │   └── carro_teste.jpg  <-- Imagens para testes
     ├── src/
     │   └── main.cpp         <-- O código-fonte da sua aplicação
     │   └── json.hpp         <-- Biblioteca nlohmann/json (NECESSÁRIO AQUI)
     └── CMakeLists.txt       <-- O "roteiro" de compilação da sua aplicação
-├── Local_da_Camera.txt 	 <-- Configuração de localização (na raiz)	
-├── PLACAS_ROUBADAS.txt 	 <-- Lista de placas (na raiz)
-├── MeuProjetoALPR_RASP/ 	 <-- Código para a RASP
-    ├── ...          
+├── Local_da_Camera.txt 	 <-- Configuração de localização da câmera
+├── PLACAS_ROUBADAS.txt 	 <-- Lista de placas roubadas
+├── capturas				 <-- Arquivo onde são guardadas as fotos identificadas como de carros roubados
+	└── PBT5340_20251027_201925
+├── MeuProjetoALPR_RAS/		 <-- Código para aplicação na RASP
+	└── README.md			 <-- Documentação específica da aplicação
+    ├── build/ 			  	 <-- Pasta para compilação (necessita cacert.pem aqui!)
+    ├── media/
+    │   └── carro_teste.jpg  <-- Imagens para testes
+    ├── src/
+    │   └── main.cpp         <-- O código-fonte da sua aplicação de captura periódica
+    │   └── json.hpp         <-- Biblioteca nlohmann/json (NECESSÁRIO AQUI)
+    └── CMakeLists.txt       <-- O "roteiro" de compilação da sua aplicação  
 ```
 
 
